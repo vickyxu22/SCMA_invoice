@@ -4,54 +4,48 @@ import pandas as pd
 
 # Directory path to search within the Desktop folder
 desktop_path = os.path.expanduser("~/Desktop")  # Path to the Desktop folder
-
 folder_name = "scma"  # Name of the folder within Desktop
-file_names = ["Inv641.docx"]  # Names of the files to find within the 'scma' folder
-
 folder_path = os.path.join(desktop_path, folder_name)  # Path to the 'scma' folder
 
-# Lists to store extracted information
-all_author_list = []
-all_publication_list = []
+# List to store extracted information
+all_data = []
 
 try:
     # Check if the folder exists
     if os.path.exists(folder_path) and os.path.isdir(folder_path):
+        file_names = os.listdir(folder_path)  # Get all files in the folder
+
+        # Filter only .docx files
+        file_names = [file_name for file_name in file_names if file_name.endswith('.docx')]
+
         for file_name in file_names:
-            # Check if the desired file exists within the folder
-            if file_name in os.listdir(folder_path):
-                file_path = os.path.join(folder_path, file_name)
-                print(f"File '{file_name}' found at: {file_path}")
+            file_path = os.path.join(folder_path, file_name)
+            print(f"Processing file '{file_name}' at: {file_path}")
 
-                # Extract information from each file
-                author_list = []
-                publication_list = []
+            doc = Document(file_path)
+            author = None
+            publication = None
 
-                doc = Document(file_path)
+            # Extract information from each file
+            for paragraph in doc.paragraphs:
+                if "Author:" in paragraph.text:
+                    # Split the paragraph into segments based on "Author:" and "Title of Publication:"
+                    segments = paragraph.text.split("Author:")
 
-                # Iterate through paragraphs in the document
-                for paragraph in doc.paragraphs:
-                    if "Author:" in paragraph.text:
-                        author_info = paragraph.text.split("Author:", 1)[-1].strip()
-                        author_list.append(author_info)
-                    elif "Title of Publication:" in paragraph.text:
-                        publication_info = paragraph.text.split("Title of Publication:", 1)[-1].strip()
-                        publication_list.append(publication_info)
+                    # Process each segment
+                    for segment in segments[1:]:
+                        parts = segment.split("Title of Publication:")
+                        if len(parts) == 2:
+                            author = parts[0].strip()
+                            publication = parts[1].strip()
 
-                # Append extracted data to the lists
-                all_author_list.extend(author_list)
-                all_publication_list.extend(publication_list)
-
-            else:
-                print(f"File '{file_name}' not found in the '{folder_name}' folder.")
-
-        # Make sure 'Author' and 'Publication' lists have the same length
-        max_length = max(len(all_author_list), len(all_publication_list))
-        all_author_list += [''] * (max_length - len(all_author_list))
-        all_publication_list += [''] * (max_length - len(all_publication_list))
+                            # Append extracted data to the list as a tuple (author, publication)
+                            all_data.append((author, publication))
+                        else:
+                            print(f"Error: Unable to extract Author and Title of Publication from '{file_name}'.")
 
         # Create a DataFrame from all extracted data
-        data = {'Author': all_author_list, 'Publication': all_publication_list}
+        data = {'Author': [entry[0] for entry in all_data], 'Publication': [entry[1] for entry in all_data]}
         df = pd.DataFrame(data)
 
         # Export DataFrame to Excel
@@ -64,3 +58,4 @@ try:
 
 except Exception as e:
     print(f"An error occurred: {e}")
+
